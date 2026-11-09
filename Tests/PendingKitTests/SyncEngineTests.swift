@@ -51,6 +51,29 @@ final class SyncEngineTests: XCTestCase {
         XCTAssertNotNil(byID["linear:1"]?.completedAt)
     }
 
+    func testExplicitlyResolvedIDsCloseEvenWhenTheirSourceWasNotChecked() throws {
+        let manual = TaskItem(id: "manual:1", title: "mine", source: "slack", firstSeenAt: now)
+        let other = TaskItem(id: "x", title: "other origin", source: "slack", origin: "other", firstSeenAt: now)
+        let first = SyncPayload(origin: "daily-sweep", mode: .snapshot, tasks: [incoming("slack:1", source: "slack"), incoming("slack:2", source: "slack")])
+        let (afterFirst, _) = try SyncEngine.apply(first, to: [manual, other], now: now)
+
+        let second = SyncPayload(
+            origin: "daily-sweep",
+            mode: .merge,
+            checkedSources: ["linear"],
+            tasks: [incoming("slack:2", source: "slack")],
+            resolved: ["slack:1", "slack:2", "manual:1", "x", "missing"]
+        )
+        let (afterSecond, result) = try SyncEngine.apply(second, to: afterFirst, now: now)
+
+        let byID = Dictionary(uniqueKeysWithValues: afterSecond.map { ($0.id, $0) })
+        XCTAssertEqual(result.resolved, 1)
+        XCTAssertEqual(byID["slack:1"]?.completionReason, .resolvedUpstream)
+        XCTAssertNil(byID["slack:2"]?.completedAt)
+        XCTAssertNil(byID["manual:1"]?.completedAt)
+        XCTAssertNil(byID["x"]?.completedAt)
+    }
+
     func testMergeModeNeverResolves() throws {
         let first = SyncPayload(origin: "daily-sweep", mode: .merge, tasks: [incoming("a")])
         let (afterFirst, _) = try SyncEngine.apply(first, to: [], now: now)

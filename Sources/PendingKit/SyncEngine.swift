@@ -57,16 +57,18 @@ public struct SyncPayload: Decodable, Sendable {
     public var mode: SyncMode
     public var checkedSources: [String]?
     public var tasks: [IncomingTask]
+    public var resolved: [String]?
 
-    public init(origin: String, mode: SyncMode = .merge, checkedSources: [String]? = nil, tasks: [IncomingTask]) {
+    public init(origin: String, mode: SyncMode = .merge, checkedSources: [String]? = nil, tasks: [IncomingTask], resolved: [String]? = nil) {
         self.origin = origin
         self.mode = mode
         self.checkedSources = checkedSources
         self.tasks = tasks
+        self.resolved = resolved
     }
 
     private enum CodingKeys: String, CodingKey {
-        case origin, mode, checkedSources, tasks
+        case origin, mode, checkedSources, tasks, resolved
     }
 
     public init(from decoder: Decoder) throws {
@@ -74,7 +76,8 @@ public struct SyncPayload: Decodable, Sendable {
         origin = try container.decode(String.self, forKey: .origin)
         mode = try container.decodeIfPresent(SyncMode.self, forKey: .mode) ?? .merge
         checkedSources = try container.decodeIfPresent([String].self, forKey: .checkedSources)
-        tasks = try container.decode([IncomingTask].self, forKey: .tasks)
+        tasks = try container.decodeIfPresent([IncomingTask].self, forKey: .tasks) ?? []
+        resolved = try container.decodeIfPresent([String].self, forKey: .resolved)
     }
 }
 
@@ -190,6 +193,15 @@ public enum SyncEngine {
                 output[index].updatedAt = now
                 result.resolved += 1
             }
+        }
+
+        let explicitlyResolved = Set(payload.resolved ?? []).subtracting(incomingIDs)
+        for index in output.indices where explicitlyResolved.contains(output[index].id) {
+            guard output[index].isOpen, output[index].origin == payload.origin else { continue }
+            output[index].completedAt = now
+            output[index].completionReason = .resolvedUpstream
+            output[index].updatedAt = now
+            result.resolved += 1
         }
 
         return (output, result)

@@ -194,16 +194,17 @@ public final class MCPHandler {
     static let toolDefinitions: [[String: Any]] = [
         [
             "name": "pending_sync",
-            "description": "Publish tasks to PendingBar. mode=snapshot resolves this origin's open tasks that are missing from the list, but only for sources named in checkedSources (omit it to resolve across all sources). mode=merge only adds and updates. Tasks the user marked done stay done.",
+            "description": "Publish tasks to PendingBar. mode=snapshot resolves this origin's open tasks that are missing from the list, but only for sources named in checkedSources (omit it to resolve across all sources). mode=merge only adds and updates. Ids in resolved are resolved in either mode. Tasks the user marked done stay done.",
             "inputSchema": [
                 "type": "object",
                 "properties": [
                     "origin": ["type": "string", "description": "Who is syncing, for example daily-sweep. 'manual' is reserved."],
                     "mode": ["type": "string", "enum": ["snapshot", "merge"]],
                     "checkedSources": ["type": "array", "items": ["type": "string"]],
-                    "tasks": ["type": "array", "items": taskSchema]
+                    "tasks": ["type": "array", "items": taskSchema],
+                    "resolved": ["type": "array", "items": ["type": "string"], "description": "Ids verified as resolved at their source. They are resolved even when their source is not in checkedSources, in either mode."]
                 ],
-                "required": ["origin", "tasks"]
+                "required": ["origin"]
             ]
         ],
         [
